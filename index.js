@@ -30,6 +30,24 @@ async function connectToDatabase() {
 
     const database = client.db("TravelEase");
     const travelCollection = database.collection("travelsDetails");
+    const userCollection = database.collection("usersDetails");
+
+    // add user data
+    app.post('/users', async (req, res) => {
+      const newUser = req.body;
+
+      const email = req.body.email;
+      const query = { email: email }
+      const existingUser = await userCollection.findOne(query)
+
+      if(existingUser) {
+        res.send({message: "user already exist"})
+      }
+      else {
+        const result = await userCollection.insertOne(newUser)
+        res.send(result)
+      }
+    })
 
     // add all travel data
     app.post("/travels", async (req, res) => {
