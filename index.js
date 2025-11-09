@@ -29,18 +29,45 @@ async function connectToDatabase() {
     await client.connect();
 
     const database = client.db("TravelEase");
-    const travelCollection = database.collection("travel");
+    const travelCollection = database.collection("travelsDetails");
 
+    // add all travel data
     app.post("/travels", async (req, res) => {
       const newTravelTicket = req.body;
       const result = await travelCollection.insertOne(newTravelTicket);
       res.send(result);
     });
 
+    //get all travel data
     app.get('/travels', async (req, res) => {
       console.log("Request received for all travel tickets.");
       try {
-        const cursor = travelCollection.find({});
+        console.log(req.query)
+        const email = req.query.email;
+        const query = {}
+        if(email) {
+            query.userEmail = email
+        }
+
+        const cursor = travelCollection.find(query);
+        const travels = await cursor.toArray();
+        res.send(travels);
+      } catch (error) {
+        console.error("Failed to fetch travel data from MongoDB:", error);
+        res
+          .status(500)
+          .send({
+            message: "errot to server get to data",
+            error: error.message,
+          });
+      }
+    });
+
+    //get last 6 travel data
+    app.get('/letestTravels', async (req, res) => {
+      console.log("Request received for latest 6 travel tickets.");
+      try {
+        const cursor = travelCollection.find({}).sort({ _id: -1 }).limit(6);
         const travels = await cursor.toArray();
         res.send(travels);
       } catch (error) {
@@ -62,6 +89,7 @@ async function connectToDatabase() {
         res.send(result)
     })
 
+    //updte travel data
     app.patch('/travels/:id', async (req, res) => {
         const id = req.params.id;
         const updateTravelData = req.body;
@@ -77,9 +105,10 @@ async function connectToDatabase() {
         res.send(result)
     })
 
+    //delete travel data
     app.delete("/travels/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const result = await travelCollection.deleteOne(query);
       res.send(result);
     });
