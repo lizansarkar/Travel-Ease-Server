@@ -33,21 +33,20 @@ async function connectToDatabase() {
     const userCollection = database.collection("usersDetails");
 
     // add user data
-    app.post('/users', async (req, res) => {
+    app.post("/users", async (req, res) => {
       const newUser = req.body;
 
       const email = req.body.email;
-      const query = { email: email }
-      const existingUser = await userCollection.findOne(query)
+      const query = { email: email };
+      const existingUser = await userCollection.findOne(query);
 
-      if(existingUser) {
-        res.send({message: "user already exist"})
+      if (existingUser) {
+        res.send({ message: "user already exist" });
+      } else {
+        const result = await userCollection.insertOne(newUser);
+        res.send(result);
       }
-      else {
-        const result = await userCollection.insertOne(newUser)
-        res.send(result)
-      }
-    })
+    });
 
     // add all travel data
     app.post("/travels", async (req, res) => {
@@ -57,14 +56,14 @@ async function connectToDatabase() {
     });
 
     //get all travel data
-    app.get('/travels', async (req, res) => {
+    app.get("/travels", async (req, res) => {
       console.log("Request received for all travel tickets.");
       try {
-        console.log(req.query)
+        console.log(req.query);
         const email = req.query.email;
-        const query = {}
-        if(email) {
-            query.userEmail = email
+        const query = {};
+        if (email) {
+          query.userEmail = email;
         }
 
         const cursor = travelCollection.find(query);
@@ -72,17 +71,15 @@ async function connectToDatabase() {
         res.send(travels);
       } catch (error) {
         console.error("Failed to fetch travel data from MongoDB:", error);
-        res
-          .status(500)
-          .send({
-            message: "errot to server get to data",
-            error: error.message,
-          });
+        res.status(500).send({
+          message: "errot to server get to data",
+          error: error.message,
+        });
       }
     });
 
     //get last 6 travel data
-    app.get('/letestTravels', async (req, res) => {
+    app.get("/letestTravels", async (req, res) => {
       console.log("Request received for latest 6 travel tickets.");
       try {
         const cursor = travelCollection.find({}).sort({ _id: -1 }).limit(6);
@@ -90,44 +87,53 @@ async function connectToDatabase() {
         res.send(travels);
       } catch (error) {
         console.error("Failed to fetch travel data from MongoDB:", error);
-        res
-          .status(500)
-          .send({
-            message: "errot to server get to data",
-            error: error.message,
-          });
+        res.status(500).send({
+          message: "errot to server get to data",
+          error: error.message,
+        });
       }
     });
 
     //get single travel data again again
-    app.get('/travels/:id', async (req, res) => {
-        const id = req.params.id;
-        const query = { _id: id }
-        const result = await travelCollection.findOne(query);
-        res.send(result)
-    })
+    app.get("/travels/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: id };
+      const result = await travelCollection.findOne(query);
+      res.send(result);
+    });
 
     //updte travel data
-    app.patch('/travels/:id', async (req, res) => {
-        const id = req.params.id;
-        const updateTravelData = req.body;
-        const query = {_id: id}
-        const upadate  = {
-            $set: {
-                owner: updateTravelData.owner,
-                pricePerDay: updateTravelData.pricePerDay
-            }
-        }
+    app.patch("/travels/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateTravelData = req.body;
+      const query = { _id: id };
+      const upadate = {
+        $set: {
+          owner: updateTravelData.owner,
+          pricePerDay: updateTravelData.pricePerDay,
+        },
+      };
 
-        const result = await travelCollection.updateOne(query, upadate)
-        res.send(result)
-    })
+      const result = await travelCollection.updateOne(query, upadate);
+      res.send(result);
+    });
 
     //delete travel data
     app.delete("/travels/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: id };
       const result = await travelCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //add new travel data
+    app.post("/addedVehicle", async (req, res) => {
+
+      const addNewVehicle = req.body;
+      console.log("Received new vehicle data:", addNewVehicle);
+
+      const result = await travelCollection.insertOne(addNewVehicle);
+
       res.send(result);
     });
 
