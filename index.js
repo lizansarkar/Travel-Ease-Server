@@ -31,6 +31,7 @@ async function connectToDatabase() {
     const database = client.db("TravelEase");
     const travelCollection = database.collection("travelsDetails");
     const userCollection = database.collection("usersDetails");
+    const bookingsCollection = database.collection("bookingsDetails");
 
     // add user data
     app.post("/users", async (req, res) => {
@@ -128,7 +129,6 @@ async function connectToDatabase() {
 
     //add new travel data
     app.post("/addedVehicle", async (req, res) => {
-
       const addNewVehicle = req.body;
       console.log("Received new vehicle data:", addNewVehicle);
 
@@ -136,6 +136,100 @@ async function connectToDatabase() {
 
       res.send(result);
     });
+
+    //add booking data
+    app.post("/bookings", async (req, res) => {
+      const bookingData = req.body;
+
+      const query = {
+        vehicleId: bookingData.vehicleId,
+        renterEmail: bookingData.renterEmail,
+      };
+
+      const existingBooking = await bookingsCollection.findOne(query);
+
+      if (existingBooking) {
+        console.log("Duplicate booking attempt detected.");
+        return res.send({
+          success: false,
+          message:
+            "You have already placed a booking request for this vehicle.",
+        });
+      }
+
+      const result = await bookingsCollection.insertOne(bookingData);
+
+      res.send({
+        success: true,
+        insertedId: result.insertedId,
+        message: "Booking request submitted successfully!",
+      });
+    });
+
+    //get booking data mane data usser unujayi data
+    app.get("/my-vehicles", async (req, res) => {
+      const userEmail = req.query.email;
+
+      if (!userEmail) {
+        return res
+          .status(401)
+          .send({ message: "Email parameter is required." });
+      }
+
+      try {
+        const query = { userEmail: userEmail };
+        const vehicles = await travelCollection.find(query).toArray();
+        res.send(vehicles);
+      } catch (error) {
+        console.error("Error fetching user vehicles:", error);
+        res.status(500).send({ message: "Internal server error." });
+      }
+    });
+
+    //delete vehicle booking
+    app.delete("/vehicle/:id", async (req, res) => {
+      const id = req.params.id;
+      if (!id) {
+        return res.status(401).send({ message: "Vehicle ID is required." });
+      }
+      try {
+        const query = { _id: new ObjectId(id) };
+        const result = await travelCollection.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting vehicle:", error);
+        res.status(500).send({ message: "Internal server error." });
+      }
+    });
+
+    //update data put dite
+    app.put("/vehicle/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedVehicleData = req.body;
+
+      delete updatedVehicleData._id;
+
+      try {
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            ...updatedVehicleData,
+          },
+        };
+
+        const result = await travelCollection.updateOne(filter, updateDoc);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating vehicle:", error);
+        res.status(505).send({ message: "Internal server error." });
+      }
+    });
+
+
+
+
+    
 
     await client.db("admin").command({ ping: 1 });
     console.log(
