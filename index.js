@@ -98,7 +98,7 @@ async function connectToDatabase() {
     //get single travel data again again
     app.get("/travels/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const result = await travelCollection.findOne(query);
       res.send(result);
     });
@@ -107,7 +107,7 @@ async function connectToDatabase() {
     app.patch("/travels/:id", async (req, res) => {
       const id = req.params.id;
       const updateTravelData = req.body;
-      const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const upadate = {
         $set: {
           owner: updateTravelData.owner,
@@ -122,7 +122,7 @@ async function connectToDatabase() {
     //delete travel data
     app.delete("/travels/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+      const query = { _id: new ObjectId(id) };
       const result = await travelCollection.deleteOne(query);
       res.send(result);
     });
