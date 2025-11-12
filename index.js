@@ -1,16 +1,45 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+//firebase admin sdk
+const admin = require("firebase-admin");
+const serviceAccount = require("./travel-ease-firebase-adminsdk-key.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 // there are will be middlewere here
 app.use(cors());
 app.use(express.json());
 
-const uri =
-  "mongodb+srv://TravelEase:WuGVU8A34EgcAK8y@lizan0.tl45evy.mongodb.net/?appName=lizan0";
+// add midlewere with firebase
+const verifyFirebaseToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  try {
+    const userInfo = await admin.auth().verifyIdToken(token);
+    req.token_email = userInfo.email;
+    console.log("Decoded Firebase token:", userInfo);
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+};
+
+//uri for mongodb connection
+const uri = process.env.MONGODB_URI;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -128,7 +157,7 @@ async function connectToDatabase() {
     });
 
     //add new travel data
-    app.post("/addedVehicle", async (req, res) => {
+    app.post("/addedVehicle", verifyFirebaseToken, async (req, res) => {
       const addNewVehicle = req.body;
       console.log("Received new vehicle data:", addNewVehicle);
 
@@ -138,7 +167,7 @@ async function connectToDatabase() {
     });
 
     //add booking data
-    app.post("/bookings", async (req, res) => {
+    app.post("/bookings", verifyFirebaseToken, async (req, res) => {
       const bookingData = req.body;
 
       const query = {
@@ -167,13 +196,19 @@ async function connectToDatabase() {
     });
 
     //get booking data mane data usser unujayi data
-    app.get("/my-vehicles", async (req, res) => {
+    app.get("/my-vehicles", verifyFirebaseToken, async (req, res) => {
       const userEmail = req.query.email;
 
       if (!userEmail) {
         return res
           .status(401)
           .send({ message: "Email parameter is required." });
+      }
+
+      if (userEmail) {
+        if (req.token_email !== userEmail) {
+          return res.status(403).send({ message: "Forbidden access." });
+        }
       }
 
       try {
@@ -222,16 +257,38 @@ async function connectToDatabase() {
         res.send(result);
       } catch (error) {
         console.error("Error updating vehicle:", error);
-        res.status(505).send({ message: "Internal server error." });
+        res.status(500).send({ message: "Internal server error." });
       }
     });
 
+    //booking get api and get all booking data
+    app.get("/bookings", verifyFirebaseToken, async (req, res) => {
+      const requesterEmail = req.query.email;
+      // const userEmail = req.userEmail;
+      const userEmailFromToken = req.token_email;
 
+      console.log(requesterEmail, userEmailFromToken);
 
+      if (userEmailFromToken !== requesterEmail) {
+        return res
+          .status(403)
+          .send({ message: "Forbidden Access: Email mismatch" });
+      }
 
-    
+      try {
+        const query = { renterEmail: requesterEmail };
 
-    await client.db("admin").command({ ping: 1 });
+        const result = await bookingsCollection.find(query).toArray();
+        console.log("Response Data:", result);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Failed to fetch user bookings:", error);
+        res.status(500).send([]);
+      }
+    });
+
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
